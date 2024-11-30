@@ -101,6 +101,12 @@ security_group = aws.ec2.SecurityGroup("todo-app-sg",
         ),
         aws.ec2.SecurityGroupIngressArgs(
             protocol="tcp",
+            from_port=8000,
+            to_port=8000,
+            cidr_blocks=["0.0.0.0/0"],  # Allow HTTP from anywhere
+        ),
+        aws.ec2.SecurityGroupIngressArgs(
+            protocol="tcp",
             from_port=22,
             to_port=22,
             cidr_blocks=["0.0.0.0/0"],  # Allow SSH from anywhere
@@ -153,10 +159,53 @@ backend_instance2 = aws.ec2.Instance("todo-app-backend-instance-2",
     tags={"Name": "todo-app-backend-instance-2"},
 )
 
+# Creating Application load balancer
+alb = aws.lb.LoadBalancer("todo-app-alb",
+    internal=False,
+    security_groups=[security_group.id],
+    subnets=[public_subnet2.id, public_subnet3.id],
+    enable_deletion_protection=False,
+    tags={"Name": "todo-app-alb"},
+)
 
+# ALB Target Group
+target_group = aws.lb.TargetGroup("todo-app-backend-tg",
+    port=8000, # port of the backend instance
+    protocol="HTTP",
+    vpc_id=vpc.id,
+    health_check=aws.lb.TargetGroupHealthCheckArgs(
+        path="/todo/health/",
+        interval=30,
+        timeout=10,
+        healthy_threshold=3,
+        unhealthy_threshold=3,
+    ),
+    tags={"Name": "todo-app-backend-tg"},
+)
 
+# ALB Listener
+listener = aws.lb.Listener("todo-app-alb-listener",
+    load_balancer_arn=alb.arn,
+    port=80,
+    protocol="HTTP",
+    default_actions=[aws.lb.ListenerDefaultActionArgs(
+        type="forward",
+        target_group_arn=target_group.arn,
+    )],
+)
 
+# Register backend instances with the ALB Target Group
+backend_attachment1 = aws.lb.TargetGroupAttachment("backend-attachment-1",
+    target_group_arn=target_group.arn,
+    target_id=backend_instance1.id,
+    port=8000,
+)
 
+backend_attachment2 = aws.lb.TargetGroupAttachment("backend-attachment-2",
+    target_group_arn=target_group.arn,
+    target_id=backend_instance2.id,
+    port=8000,
+)
 
 
 
