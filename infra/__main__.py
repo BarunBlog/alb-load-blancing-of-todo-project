@@ -17,13 +17,36 @@ vpc = aws.ec2.Vpc("my-vpc",
     }
 )
 
-# Create a public subnet
-public_subnet = aws.ec2.Subnet("todo-app-public-subnet",
+# Create a public subnet for frontend
+public_subnet1 = aws.ec2.Subnet("todo-app-public-frontend-subnet-1",
     vpc_id=vpc.id,
     cidr_block="10.0.1.0/24",
     map_public_ip_on_launch=True,
+    availability_zone="ap-southeast-1a",
     tags={
-        "Name": "todo-app-public-subnet",
+        "Name": "todo-app-public-frontend-subnet-1",
+    }
+)
+
+# Create the second public subnet for backend instance one
+public_subnet2 = aws.ec2.Subnet("todo-app-public-backend-subnet-1",
+    vpc_id=vpc.id,
+    cidr_block="10.0.2.0/24",
+    map_public_ip_on_launch=True,
+    availability_zone="ap-southeast-1b",
+    tags={
+        "Name": "todo-app-public-backend-subnet-1",
+    }
+)
+
+# Create the third public subnet for backend instance two
+public_subnet3 = aws.ec2.Subnet("todo-app-public-backend-subnet-2",
+    vpc_id=vpc.id,
+    cidr_block="10.0.3.0/24",
+    map_public_ip_on_launch=True,
+    availability_zone="ap-southeast-1c",
+    tags={
+        "Name": "todo-app-public-backend-subnet-2",
     }
 )
 
@@ -49,9 +72,19 @@ route_table = aws.ec2.RouteTable("todo-app-route-table",
     }
 )
 
-# Associate route table with the public subnet
-route_table_association = aws.ec2.RouteTableAssociation("todo-app-rt-association",
-    subnet_id=public_subnet.id,
+# Associate route table with the public subnets
+aws.ec2.RouteTableAssociation("todo-app-rt-association-frontend-1",
+    subnet_id=public_subnet1.id,
+    route_table_id=route_table.id
+)
+
+aws.ec2.RouteTableAssociation("todo-app-rt-association-backend-1",
+    subnet_id=public_subnet2.id,
+    route_table_id=route_table.id
+)
+
+aws.ec2.RouteTableAssociation("todo-app-rt-association-backend-2",
+    subnet_id=public_subnet3.id,
     route_table_id=route_table.id
 )
 
@@ -87,23 +120,38 @@ security_group = aws.ec2.SecurityGroup("todo-app-sg",
 )
 
 # Creating the ec2 instances
-instances = []
-number_of_instances = 2
+
 ami_id = "ami-060e277c0d4cce553"
 
-for i in range(number_of_instances):
-    instance = aws.ec2.Instance(f"todo-app-instance-{i}",
-        instance_type="t2.micro",
-        ami=ami_id,
-        subnet_id=public_subnet.id,
-        vpc_security_group_ids=[security_group.id],
-        key_name="MyKeyPair",
-        associate_public_ip_address=True,
-        tags={"Name": f"todo-app-instance-{i}"},
-    )
+frontend_instance = aws.ec2.Instance("todo-app-frontend-instance-1",
+    instance_type="t2.micro",
+    ami=ami_id,
+    subnet_id=public_subnet1.id,
+    vpc_security_group_ids=[security_group.id],
+    key_name="MyKeyPair",
+    associate_public_ip_address=True,
+    tags={"Name": "todo-app-frontend-instance-1"},
+)
 
-    instances.append(instance)
+backend_instance1 = aws.ec2.Instance("todo-app-backend-instance-1",
+    instance_type="t2.micro",
+    ami=ami_id,
+    subnet_id=public_subnet2.id,
+    vpc_security_group_ids=[security_group.id],
+    key_name="MyKeyPair",
+    associate_public_ip_address=True,
+    tags={"Name": "todo-app-backend-instance-1"},
+)
 
+backend_instance2 = aws.ec2.Instance("todo-app-backend-instance-2",
+    instance_type="t2.micro",
+    ami=ami_id,
+    subnet_id=public_subnet2.id,
+    vpc_security_group_ids=[security_group.id],
+    key_name="MyKeyPair",
+    associate_public_ip_address=True,
+    tags={"Name": "todo-app-backend-instance-2"},
+)
 
 
 
